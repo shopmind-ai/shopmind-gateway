@@ -6,7 +6,18 @@ from database import get_conn
 from middleware.auth import require_auth
 
 router = APIRouter()
-_TIMEOUT = 60.0
+
+# Per-agent timeouts (seconds). Agents that do multi-step LLM calls need more time.
+_TIMEOUTS: dict[str, float] = {
+    "cluster":  180.0,   # multiple Tool Use rounds
+    "finetune": 120.0,   # two parallel LLM calls
+    "clip":     300.0,   # video download + Whisper + FFmpeg
+}
+_DEFAULT_TIMEOUT = 60.0
+
+
+def _timeout_for(agent: str) -> float:
+    return _TIMEOUTS.get(agent, _DEFAULT_TIMEOUT)
 
 
 def log_usage(username: str, agent_name: str, usage: dict):
@@ -36,7 +47,7 @@ async def invoke(agent: str, request: Request, username: str = Depends(require_a
     url = f"{AGENT_URLS[agent]}/invoke"
 
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=_timeout_for(agent)) as client:
             resp = await client.post(url, json=body)
             data = resp.json()
             log_usage(username, agent, data.get("usage", {}))
