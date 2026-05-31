@@ -6,7 +6,7 @@ from database import get_conn
 from middleware.auth import require_auth
 
 router = APIRouter()
-_TIMEOUT = 10.0
+_TIMEOUT = 60.0
 
 
 def log_usage(username: str, agent_name: str, usage: dict):
